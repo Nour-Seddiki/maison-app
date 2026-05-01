@@ -1,19 +1,27 @@
 'use client'
 
-import { useState } from 'react'
-import Image from 'next/image'
+import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Check } from 'lucide-react'
+import { Check, Upload, X } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const steps = ['Details', 'Location', 'Narrative', 'Preview']
 
 const propertyTypes = ['Penthouse', 'Townhouse', 'Villa', 'Apartment', 'Estate', 'Mews', 'Manor']
 
 export default function NewListingPage() {
+  const router = useRouter()
   const [currentStep, setCurrentStep] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [images, setImages] = useState<{ file: File; preview: string }[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     title: '',
     propertyType: 'townhouse',
@@ -30,9 +38,101 @@ export default function NewListingPage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files) return
+    const newImages = Array.from(files)
+      .filter(f => f.type.startsWith('image/'))
+      .slice(0, 10 - images.length)
+      .map(file => ({ file, preview: URL.createObjectURL(file) }))
+    setImages(prev => [...prev, ...newImages])
+  }
+
+  const removeImage = (index: number) => {
+    setImages(prev => {
+      URL.revokeObjectURL(prev[index].preview)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    setSubmitError('')
+    try {
+      const res = await fetch('/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          property_type: formData.propertyType,
+          bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
+          bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : null,
+          sq_ft: formData.sqFt ? parseInt(formData.sqFt) : null,
+          full_address: formData.fullAddress,
+          city: formData.fullAddress.split(',').pop()?.trim() || 'London',
+          price: formData.price ? parseInt(formData.price) : 0,
+          editorial_accent_color: formData.accentColor,
+          narrative: formData.narrative,
+          listing_type: 'sale',
+          status: 'active',
+          is_freehold: true,
+          is_grade_listed: false,
+          is_featured: false,
+          is_off_market: false,
+          features: [],
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to submit listing')
+      }
+      const { data: created } = await res.json()
+      const propertyId = created?.id
+
+      // Upload images to Supabase Storage if any
+      if (propertyId && images.length > 0) {
+        setUploading(true)
+        const supabase = createClient()
+        for (let i = 0; i < images.length; i++) {
+          const { file } = images[i]
+          const ext = file.name.split('.').pop()
+          const path = `${propertyId}/${Date.now()}-${i}.${ext}`
+          const { data: upload, error: uploadError } = await supabase.storage
+            .from('property-images')
+            .upload(path, file, { cacheControl: '3600', upsert: false })
+          if (!uploadError && upload) {
+            const { data: { publicUrl } } = supabase.storage
+              .from('property-images')
+              .getPublicUrl(upload.path)
+            await supabase.from('property_images').insert({
+              property_id: propertyId,
+              url: publicUrl,
+              is_primary: i === 0,
+              display_order: i,
+            })
+          }
+        }
+        setUploading(false)
+      }
+
+      router.push('/seller/listings')
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to submit listing')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen pt-28 pb-24 px-6 md:px-12">
       <div className="max-w-[1200px] mx-auto">
+        {/* Back button */}
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-xs font-body uppercase tracking-[0.2em] text-text-muted hover:text-gold transition-colors mb-10"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Back
+        </button>
         {/* Step Indicator */}
         <div className="flex items-center justify-center gap-0 mb-16">
           {steps.map((step, i) => (
@@ -143,9 +243,43 @@ export default function NewListingPage() {
                   />
                 </div>
 
-                <div className="border-2 border-dashed border-border p-12 text-center hover:border-gold/30 transition-colors cursor-pointer">
-                  <p className="label-caps text-text-muted mb-2">Drop Images Here</p>
-                  <p className="text-xs text-text-muted font-body tracking-wider">or click to browse · JPEG, PNG up to 10MB</p>
+                <div>
+                  <label className="block text-[0.7rem] font-body font-medium uppercase tracking-[0.2em] text-text-secondary mb-3">Property Images</label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={e => handleFileSelect(e.target.files)}
+                  />
+                  <div
+                    className="border-2 border-dashed border-border p-8 text-center hover:border-gold/30 transition-colors cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={e => { e.preventDefault(); handleFileSelect(e.dataTransfer.files) }}
+                  >
+                    <Upload size={20} className="mx-auto mb-3 text-text-muted" />
+                    <p className="label-caps text-text-muted mb-1">Drop Images Here</p>
+                    <p className="text-xs text-text-muted font-body tracking-wider">or click to browse · JPEG, PNG, WebP up to 10MB each</p>
+                  </div>
+                  {images.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3 mt-4">
+                      {images.map((img, i) => (
+                        <div key={i} className="relative aspect-square group">
+                          <img src={img.preview} alt={`Upload ${i+1}`} className="w-full h-full object-cover" />
+                          {i === 0 && <span className="absolute top-1 left-1 bg-gold text-obsidian text-[0.6rem] font-body font-medium uppercase tracking-wider px-1.5 py-0.5">Cover</span>}
+                          <button
+                            type="button"
+                            onClick={() => removeImage(i)}
+                            className="absolute top-1 right-1 bg-black/60 text-white p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -190,14 +324,19 @@ export default function NewListingPage() {
                 className="text-xs font-body uppercase tracking-[0.2em] text-text-muted hover:text-gold transition-colors"
                 disabled={currentStep === 0}
               >
-                ← Save Draft
+                ← Back
               </button>
               {currentStep < 3 ? (
                 <Button variant="gold" onClick={() => setCurrentStep(currentStep + 1)}>
                   Continue to Step {currentStep + 2} →
                 </Button>
               ) : (
-                <Button variant="gold">SUBMIT FOR REVIEW</Button>
+                <>
+                  {submitError && <p className="text-xs text-red-400 font-body mr-4">{submitError}</p>}
+                  <Button variant="gold" onClick={handleSubmit} disabled={submitting || uploading}>
+                    {uploading ? 'UPLOADING IMAGES...' : submitting ? 'SUBMITTING...' : 'SUBMIT LISTING'}
+                  </Button>
+                </>
               )}
             </div>
           </div>

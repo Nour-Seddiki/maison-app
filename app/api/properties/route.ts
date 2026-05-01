@@ -57,12 +57,20 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
+
+  // Auto-generate slug from title
+  const baseSlug = (body.title || 'property')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  const slug = `${baseSlug}-${Date.now()}`
+
   const { data, error } = await supabase
     .from('properties')
     .insert({
       ...body,
+      slug,
       seller_id: user.id,
-      status: 'draft',
     })
     .select()
     .single()

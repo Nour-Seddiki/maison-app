@@ -1,25 +1,38 @@
-'use client'
-
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { motion } from 'framer-motion'
 
-const listings = [
-  { id: '1', title: 'The Stanhope Residence', seller: 'James Morrison', status: 'active', price: '£24,500,000', views: 1240 },
-  { id: '2', title: 'One Southbank Tower', seller: 'Elizabeth Hayes', status: 'active', price: '£8,250,000', views: 890 },
-  { id: '3', title: 'Cadogan Gardens', seller: 'James Morrison', status: 'pending_review', price: '£12,000,000', views: 0 },
-  { id: '4', title: 'Lansdowne House', seller: 'Elizabeth Hayes', status: 'pending_review', price: '£8,750,000', views: 0 },
-  { id: '5', title: 'Chester Square Flat', seller: 'Robert Chen', status: 'draft', price: '£3,200,000', views: 0 },
-]
+export const revalidate = 0
 
-export default function AdminListingsPage() {
+async function updateListingStatus(id: string, status: string) {
+  'use server'
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  await supabase.from('properties').update({ status }).eq('id', id)
+  revalidatePath('/admin/listings')
+}
+
+export default async function AdminListingsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/signin')
+  const { data: adminProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (adminProfile?.role !== 'admin') redirect('/dashboard')
+
+  const { data: listings } = await supabase
+    .from('properties')
+    .select('id, title, price, status, view_count, created_at, seller:profiles(full_name)')
+    .order('created_at', { ascending: false })
+
   return (
     <div className="min-h-screen pt-28 pb-24 px-6 md:px-12">
       <div className="max-w-[1400px] mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
+        <div className="mb-12">
           <p className="label-caps text-gold mb-2">Administration</p>
           <h1 className="font-heading text-4xl italic text-text-primary">All Listings</h1>
-        </motion.div>
+        </div>
 
         <div className="bg-surface border border-border">
           <div className="overflow-x-auto">
@@ -35,19 +48,39 @@ export default function AdminListingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {listings.map((listing) => (
+                {!listings || listings.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-text-muted font-body">No listings yet</td>
+                  </tr>
+                ) : listings.map((listing) => (
                   <tr key={listing.id} className="border-b border-border hover:bg-surface-2/50 transition-colors">
                     <td className="px-6 py-4 text-sm text-text-primary font-body">{listing.title}</td>
-                    <td className="px-6 py-4 text-sm text-text-secondary font-body">{listing.seller}</td>
+                    <td className="px-6 py-4 text-sm text-text-secondary font-body">{(listing.seller as any)?.full_name || '—'}</td>
                     <td className="px-6 py-4">
                       <Badge variant={listing.status === 'active' ? 'success' : listing.status === 'pending_review' ? 'gold' : 'outline'}>
-                        {listing.status.replace('_', ' ')}
+                        {listing.status.replace(/_/g, ' ')}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4 text-gold text-sm font-heading">{listing.price}</td>
-                    <td className="px-6 py-4 text-sm text-text-secondary font-body">{listing.views.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-gold text-sm font-heading">£{listing.price?.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-sm text-text-secondary font-body">{(listing.view_count || 0).toLocaleString()}</td>
                     <td className="px-6 py-4 text-right">
-                      <Button variant="dark" size="sm">Manage</Button>
+                      <div className="flex items-center justify-end gap-2">
+                        {listing.status === 'pending_review' && (
+                          <form action={updateListingStatus.bind(null, listing.id, 'active')}>
+                            <Button type="submit" variant="gold" size="sm">Approve</Button>
+                          </form>
+                        )}
+                        {listing.status === 'active' && (
+                          <form action={updateListingStatus.bind(null, listing.id, 'off_market')}>
+                            <Button type="submit" variant="dark" size="sm">Deactivate</Button>
+                          </form>
+                        )}
+                        {listing.status !== 'pending_review' && listing.status !== 'active' && (
+                          <form action={updateListingStatus.bind(null, listing.id, 'active')}>
+                            <Button type="submit" variant="dark" size="sm">Activate</Button>
+                          </form>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
