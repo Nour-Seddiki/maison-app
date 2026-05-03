@@ -2,14 +2,16 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-
 // Stripe max charge is £999,999.99 (99,999,999 pence).
 // For luxury properties exceeding this, charge a reservation deposit instead.
 const STRIPE_MAX_PENCE = 99_999_999
 const DEPOSIT_AMOUNT_GBP = 10_000
 
 export async function POST(request: NextRequest) {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 503 })
+  }
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
   const supabase = await createClient()
   const {
     data: { user },
