@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { BarChart3, Eye, MessageSquare, Clock, Plus, Edit, Archive } from 'lucide-react'
+import { BarChart3, Eye, MessageSquare, Clock, Plus, Edit, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 interface DashboardClientProps {
@@ -34,8 +36,45 @@ const iconMap: Record<string, any> = {
 }
 
 export default function DashboardClient({ stats, listings, recentInquiries }: DashboardClientProps) {
+  const router = useRouter()
+  const [confirm, setConfirm] = useState<{ id: string; title: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function handleDelete(id: string) {
+    setDeleting(true)
+    setDeleteError(null)
+    const res = await fetch(`/api/properties/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setDeleteError(data.error || 'Failed to delete')
+      setDeleting(false)
+      return
+    }
+    setConfirm(null)
+    setDeleting(false)
+    router.refresh()
+  }
+
   return (
     <div className="min-h-screen pt-28 pb-24 px-6 md:px-12">
+      {confirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-surface border border-border p-8 max-w-sm w-full mx-4">
+            <h3 className="font-heading text-xl italic text-text-primary mb-2">Delete Property</h3>
+            <p className="text-sm text-text-secondary font-body mb-2">
+              Permanently delete &ldquo;{confirm.title}&rdquo;? This cannot be undone.
+            </p>
+            {deleteError && <p className="text-xs text-red-400 font-body mb-3">{deleteError}</p>}
+            <div className="flex gap-3 mt-4">
+              <Button variant="dark" size="sm" onClick={() => handleDelete(confirm.id)} disabled={deleting}>
+                {deleting ? '...' : 'Delete'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { setConfirm(null); setDeleteError(null) }}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-[1400px] mx-auto">
         {/* Header */}
         <motion.div
@@ -118,8 +157,15 @@ export default function DashboardClient({ stats, listings, recentInquiries }: Da
                     <td className="px-6 py-4 text-sm text-text-secondary font-body">{listing.view_count?.toLocaleString()}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button className="p-2 text-text-muted hover:text-gold transition-colors"><Edit size={14} /></button>
-                        <button className="p-2 text-text-muted hover:text-gold transition-colors"><Archive size={14} /></button>
+                        <Link href={`/seller/listings/${listing.id}/edit`} className="p-2 text-text-muted hover:text-gold transition-colors">
+                          <Edit size={14} />
+                        </Link>
+                        <button
+                          onClick={() => setConfirm({ id: listing.id, title: listing.title })}
+                          className="p-2 text-text-muted hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>

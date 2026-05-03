@@ -54,16 +54,16 @@ export default function PortfolioClient({ initialProperties }: { initialProperti
   }, [location, propertyType, priceRange])
 
   return (
-    <div className="min-h-screen pt-28 pb-24">
+    <div className="min-h-screen pt-20 sm:pt-24 pb-16">
       {/* Header */}
-      <div className="max-w-[1400px] mx-auto px-6 md:px-12 mb-12 text-center">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-12 mb-8 sm:mb-12 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           <p className="label-caps text-gold mb-3">Portfolio</p>
-          <h1 className="font-heading text-4xl md:text-6xl italic text-text-primary mb-4">
+          <h1 className="font-heading text-3xl sm:text-4xl md:text-6xl italic text-text-primary mb-4">
             Curated Residences
           </h1>
           <p className="text-text-secondary font-body font-light text-sm tracking-wider max-w-xl mx-auto">
@@ -73,8 +73,8 @@ export default function PortfolioClient({ initialProperties }: { initialProperti
       </div>
 
       {/* Filter Bar */}
-      <div className="max-w-[1400px] mx-auto px-6 md:px-12 mb-12">
-        <div className="bg-surface border border-border p-6 flex flex-wrap items-end gap-4">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-12 mb-8 sm:mb-12">
+        <div className="bg-surface border border-border p-4 sm:p-6 flex flex-col sm:flex-wrap sm:flex-row items-stretch sm:items-end gap-4">
           <div className="flex-1 min-w-[180px]">
             <Input
               label="Location"
@@ -124,19 +124,19 @@ export default function PortfolioClient({ initialProperties }: { initialProperti
       </div>
 
       {/* Results Header */}
-      <div className="max-w-[1400px] mx-auto px-6 md:px-12 mb-8">
-        <div className="flex items-center justify-between">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-12 mb-6 sm:mb-8">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <p className="label-caps text-text-muted">Showing</p>
-            <p className="text-text-primary font-heading text-xl mt-1">
+            <p className="text-text-primary font-heading text-lg sm:text-xl mt-1">
               {properties.length} Available Estates
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 text-xs font-body uppercase tracking-[0.15em] text-text-muted hover:text-gold transition-colors">
-              <SlidersHorizontal size={14} /> Filter
+          <div className="flex items-center gap-3 sm:gap-4">
+            <button className="flex items-center gap-1.5 text-[0.65rem] sm:text-xs font-body uppercase tracking-[0.15em] text-text-muted hover:text-gold transition-colors">
+              <SlidersHorizontal size={13} /> Filter
             </button>
-            <button className="flex items-center gap-2 text-xs font-body uppercase tracking-[0.15em] text-text-muted hover:text-gold transition-colors">
+            <button className="hidden sm:flex items-center gap-2 text-xs font-body uppercase tracking-[0.15em] text-text-muted hover:text-gold transition-colors">
               <ArrowUpDown size={14} /> Sort by: Price High
             </button>
           </div>
@@ -144,8 +144,8 @@ export default function PortfolioClient({ initialProperties }: { initialProperti
       </div>
 
       {/* Grid */}
-      <div className="max-w-[1400px] mx-auto px-6 md:px-12 mb-24">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-12 mb-16">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {properties.map((property, i) => (
             <motion.div
               key={property.id}

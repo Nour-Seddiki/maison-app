@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import PortfolioClient from './PortfolioClient'
 import { Property } from '@/types'
 
-export const revalidate = 0 // Or handle revalidation as needed
+export const revalidate = 300 // Cache for 5 minutes
 
 export default async function PortfolioPage() {
   const supabase = await createClient()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -18,6 +18,7 @@ export default function NewListingPage() {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [images, setImages] = useState<{ file: File; preview: string }[]>([])
   const [uploading, setUploading] = useState(false)
@@ -33,6 +34,31 @@ export default function NewListingPage() {
     accentColor: '#C9A96E',
     narrative: '',
   })
+
+  // Guard: redirect non-sellers away
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.replace('/signin')
+        return
+      }
+      const role = session.user.user_metadata?.role
+      if (role !== 'seller' && role !== 'admin') {
+        router.replace('/dashboard')
+        return
+      }
+      setAuthChecked(true)
+    })
+  }, [router])
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   const updateField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -103,12 +129,19 @@ export default function NewListingPage() {
             const { data: { publicUrl } } = supabase.storage
               .from('property-images')
               .getPublicUrl(upload.path)
-            await supabase.from('property_images').insert({
+            const { error: imgInsertError } = await supabase.from('property_images').insert({
               property_id: propertyId,
               url: publicUrl,
-              is_primary: i === 0,
+              is_cover: i === 0,
               display_order: i,
             })
+            // Set cover_image_url on the property for first image
+            if (!imgInsertError && i === 0) {
+              await supabase
+                .from('properties')
+                .update({ cover_image_url: publicUrl })
+                .eq('id', propertyId)
+            }
           }
         }
         setUploading(false)
@@ -123,30 +156,30 @@ export default function NewListingPage() {
   }
 
   return (
-    <div className="min-h-screen pt-28 pb-24 px-6 md:px-12">
+    <div className="min-h-screen pt-20 sm:pt-28 pb-16 sm:pb-24 px-4 sm:px-6 md:px-12">
       <div className="max-w-[1200px] mx-auto">
         {/* Back button */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-xs font-body uppercase tracking-[0.2em] text-text-muted hover:text-gold transition-colors mb-10"
+          className="flex items-center gap-2 text-xs font-body uppercase tracking-[0.2em] text-text-muted hover:text-gold transition-colors mb-8 sm:mb-10"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
           Back
         </button>
         {/* Step Indicator */}
-        <div className="flex items-center justify-center gap-0 mb-16">
+        <div className="flex items-center justify-center gap-0 mb-10 sm:mb-16 overflow-x-auto pb-2">
           {steps.map((step, i) => (
-            <div key={step} className="flex items-center">
+            <div key={step} className="flex items-center flex-shrink-0">
               <div className="flex flex-col items-center">
-                <div className={`w-10 h-10 flex items-center justify-center border-2 transition-colors ${
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center border-2 transition-colors ${
                   i <= currentStep ? 'border-gold text-gold' : 'border-border text-text-muted'
                 } ${i < currentStep ? 'bg-gold/10' : ''}`}>
-                  {i < currentStep ? <Check size={16} /> : <span className="text-sm font-body">{i + 1}</span>}
+                  {i < currentStep ? <Check size={14} /> : <span className="text-xs sm:text-sm font-body">{i + 1}</span>}
                 </div>
-                <span className={`label-caps mt-2 ${i <= currentStep ? 'text-gold' : 'text-text-muted'}`}>{step}</span>
+                <span className={`label-caps mt-1.5 text-[0.6rem] sm:text-[0.7rem] ${i <= currentStep ? 'text-gold' : 'text-text-muted'}`}>{step}</span>
               </div>
               {i < steps.length - 1 && (
-                <div className={`w-16 md:w-24 h-px mx-4 ${i < currentStep ? 'bg-gold' : 'bg-border'}`} />
+                <div className={`w-10 sm:w-16 md:w-24 h-px mx-2 sm:mx-4 ${i < currentStep ? 'bg-gold' : 'bg-border'}`} />
               )}
             </div>
           ))}

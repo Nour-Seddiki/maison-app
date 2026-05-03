@@ -7,14 +7,16 @@ import Footer from "@/components/layout/Footer";
 const cormorant = Cormorant_Garamond({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+  weight: ["300", "400", "600"],
   style: ["normal", "italic"],
+  display: "swap",
 });
 
 const montserrat = Montserrat({
   variable: "--font-body",
   subsets: ["latin"],
   weight: ["300", "400", "500"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -22,6 +24,9 @@ export const metadata: Metadata = {
   description:
     "Curating exceptional residences for the world's most discerning clientele. Luxury real estate across London's most prestigious postcodes.",
   keywords: ["luxury real estate", "London property", "private residences", "Mayfair", "Knightsbridge"],
+  icons: {
+    icon: [],
+  },
 };
 
 export default function RootLayout({

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
 import PropertyCard from '@/components/property/PropertyCard'
-import { Heart, Share2, MapPin, Bed, Bath, Maximize, Building, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Heart, Share2, MapPin, Bed, Bath, Maximize, Building, ChevronLeft, ChevronRight, CreditCard, Landmark, Bitcoin, ShieldCheck, Lock } from 'lucide-react'
 import { Property } from '@/types'
 
 interface PropertyDetailClientProps {
@@ -25,58 +25,62 @@ export default function PropertyDetailClient({ property, similarProperties }: Pr
       ? property.images.map((img) => img.url)
       : [property.cover_image_url || '/images/hero.png']
 
+  const searchParams = useSearchParams()
   const [currentImage, setCurrentImage] = useState(0)
-  const [inquiryName, setInquiryName] = useState('')
-  const [inquiryEmail, setInquiryEmail] = useState('')
-  const [inquiryPhone, setInquiryPhone] = useState('')
-  const [inquiryMessage, setInquiryMessage] = useState('')
-  const [inquiryDate, setInquiryDate] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState('')
+  const [selectedMethod, setSelectedMethod] = useState<'bank' | 'card' | 'crypto' | null>(null)
+  const [paymentStep, setPaymentStep] = useState<'choose' | 'confirm' | 'done'>('choose')
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [isDepositPayment, setIsDepositPayment] = useState(false)
+
+  useEffect(() => {
+    const status = searchParams.get('payment')
+    if (status === 'success') {
+      setSelectedMethod('card')
+      setPaymentStep('done')
+    }
+  }, [searchParams])
+
+  const handleStripeCheckout = async () => {
+    setCheckoutLoading(true)
+    setCheckoutError(null)
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId: property.id,
+          propertyTitle: property.title,
+          price: property.price,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create checkout session')
+      }
+      if (data.isDeposit) setIsDepositPayment(true)
+      window.location.href = data.url
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : 'Something went wrong')
+      setCheckoutLoading(false)
+    }
+  }
 
   const nextImage = () => setCurrentImage((prev) => (prev + 1) % images.length)
   const prevImage = () => setCurrentImage((prev) => (prev - 1 + images.length) % images.length)
 
-  const handleInquiry = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setError('')
-
-    try {
-      const res = await fetch('/api/inquiries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          property_id: property.id,
-          seller_id: property.seller_id,
-          contact_name: inquiryName,
-          contact_email: inquiryEmail,
-          contact_phone: inquiryPhone || undefined,
-          message: inquiryMessage || undefined,
-          preferred_viewing_date: inquiryDate || undefined,
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to submit inquiry')
-      }
-
-      setSubmitted(true)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to submit inquiry')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  const PAYMENT_METHODS = [
+    { id: 'bank' as const, icon: Landmark, label: 'Bank Transfer', desc: 'SWIFT / SEPA wire transfer' },
+    { id: 'card' as const, icon: CreditCard, label: 'Secure Card', desc: 'Visa, Mastercard, Amex' },
+    { id: 'crypto' as const, icon: Bitcoin, label: 'Cryptocurrency', desc: 'BTC, ETH, USDC accepted' },
+  ]
 
   const location = property.neighborhood
     ? `${property.neighborhood.name}, ${property.city}`
     : property.city
 
   return (
-    <div className="min-h-screen pt-20">
+    <div className="min-h-screen pt-16 sm:pt-20">
       {/* Hero Gallery */}
       <div className="relative h-[50vh] md:h-[65vh] overflow-hidden">
         <Image
@@ -111,21 +115,21 @@ export default function PropertyDetailClient({ property, similarProperties }: Pr
       </div>
 
       {/* Content */}
-      <div className="max-w-[1400px] mx-auto px-6 md:px-12 py-12 md:py-16">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-12 py-8 sm:py-12 md:py-16">
         <div className="grid lg:grid-cols-3 gap-12">
           {/* Left Column */}
           <div className="lg:col-span-2">
             <div>
               {/* Title & Price */}
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <div className="flex gap-2 mb-3">
+              <div className="flex items-start justify-between gap-3 mb-6">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap gap-2 mb-3">
                     <Badge variant="gold">{property.listing_type === 'sale' ? 'FOR SALE' : property.listing_type === 'rent' ? 'FOR RENT' : 'OFF MARKET'}</Badge>
                     {property.is_grade_listed && property.grade_listing && (
                       <Badge variant="outline">{property.grade_listing}</Badge>
                     )}
                   </div>
-                  <h1 className="font-heading text-3xl md:text-5xl text-text-primary mb-2">{property.title}</h1>
+                  <h1 className="font-heading text-2xl sm:text-3xl md:text-5xl text-text-primary mb-2">{property.title}</h1>
                   <div className="flex items-center gap-2 text-text-secondary">
                     <MapPin size={14} />
                     <span className="text-sm font-body tracking-wider">{location}</span>
@@ -141,7 +145,7 @@ export default function PropertyDetailClient({ property, similarProperties }: Pr
                 </div>
               </div>
 
-              <p className="text-gold font-heading text-4xl mb-10">£{property.price.toLocaleString()}</p>
+              <p className="text-gold font-heading text-3xl sm:text-4xl mb-8 sm:mb-10">£{property.price.toLocaleString()}</p>
 
               {/* Details Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 bg-surface border border-border mb-10">
@@ -215,75 +219,147 @@ export default function PropertyDetailClient({ property, similarProperties }: Pr
             </div>
           </div>
 
-          {/* Right Column - Inquiry Form */}
+          {/* Right Column - Payment */}
           <div className="lg:col-span-1">
             <div className="sticky top-28">
               <div className="bg-surface border border-border p-8">
-                <h3 className="font-heading text-xl text-text-primary mb-2">Request Private Viewing</h3>
-                <p className="text-xs text-text-muted font-body tracking-wider mb-6">
-                  Our concierge team will arrange a discreet visit at your convenience.
-                </p>
 
-                {submitted ? (
-                  <div className="text-center py-6">
-                    <p className="text-gold font-heading text-lg mb-2">Request Received</p>
-                    <p className="text-xs text-text-muted font-body tracking-wider">
-                      We will be in touch shortly to confirm your viewing.
-                    </p>
-                  </div>
-                ) : (
-                  <form className="space-y-5" onSubmit={handleInquiry}>
-                    <Input
-                      label="Full Name"
-                      placeholder="Your name"
-                      value={inquiryName}
-                      onChange={(e) => setInquiryName(e.target.value)}
-                      required
-                    />
-                    <Input
-                      label="Email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={inquiryEmail}
-                      onChange={(e) => setInquiryEmail(e.target.value)}
-                      required
-                    />
-                    <Input
-                      label="Phone"
-                      type="tel"
-                      placeholder="+44 (0) 7XXX XXXXXX"
-                      value={inquiryPhone}
-                      onChange={(e) => setInquiryPhone(e.target.value)}
-                    />
-                    <div>
-                      <label className="block text-[0.7rem] font-body font-medium uppercase tracking-[0.2em] text-text-secondary mb-3">
-                        Message
-                      </label>
-                      <textarea
-                        rows={4}
-                        placeholder="Tell us about your search..."
-                        value={inquiryMessage}
-                        onChange={(e) => setInquiryMessage(e.target.value)}
-                        className="w-full bg-surface border border-border px-4 py-3 text-sm text-text-primary font-body font-light tracking-wider placeholder:text-text-muted focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition-all resize-none"
-                      />
+                {/* Price summary */}
+                <div className="mb-6 pb-6 border-b border-border">
+                  <p className="text-[0.65rem] font-body uppercase tracking-[0.2em] text-text-muted mb-1">Asking Price</p>
+                  <p className="font-heading text-3xl text-gold">£{property.price.toLocaleString()}</p>
+                  {property.price_per_week && (
+                    <p className="text-xs text-text-muted font-body tracking-wider mt-1">or £{property.price_per_week.toLocaleString()} / week</p>
+                  )}
+                </div>
+
+                {paymentStep === 'choose' && (
+                  <>
+                    <h3 className="font-heading text-lg text-text-primary mb-1">Purchase This Residence</h3>
+                    <p className="text-xs text-text-muted font-body tracking-wider mb-6">Select your preferred payment method to proceed.</p>
+
+                    <div className="space-y-3 mb-6">
+                      {PAYMENT_METHODS.map(({ id, icon: Icon, label, desc }) => (
+                        <button
+                          key={id}
+                          onClick={() => setSelectedMethod(id)}
+                          className={`w-full flex items-center gap-4 px-4 py-3 border transition-all text-left ${
+                            selectedMethod === id
+                              ? 'border-gold bg-gold/5 text-text-primary'
+                              : 'border-border hover:border-gold/40 text-text-secondary'
+                          }`}
+                        >
+                          <Icon size={18} className={selectedMethod === id ? 'text-gold' : 'text-text-muted'} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-body font-medium uppercase tracking-[0.15em]">{label}</p>
+                            <p className="text-[0.65rem] text-text-muted font-body tracking-wider mt-0.5">{desc}</p>
+                            {id === 'card' && (
+                              <p className="text-[0.6rem] text-text-muted/60 font-body tracking-wider mt-1">Powered by Stripe</p>
+                            )}
+                          </div>
+                          {selectedMethod === id && (
+                            <ShieldCheck size={14} className="text-gold ml-auto flex-shrink-0" />
+                          )}
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <label className="block text-[0.7rem] font-body font-medium uppercase tracking-[0.2em] text-text-secondary mb-3">
-                        Preferred Viewing Date
-                      </label>
-                      <input
-                        type="date"
-                        value={inquiryDate}
-                        onChange={(e) => setInquiryDate(e.target.value)}
-                        className="w-full bg-surface border border-border px-4 py-3 text-sm text-text-primary font-body font-light tracking-wider focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition-all"
-                      />
-                    </div>
-                    {error && <p className="text-xs text-red-400 font-body">{error}</p>}
-                    <Button type="submit" variant="gold" fullWidth size="lg" disabled={submitting}>
-                      {submitting ? 'SUBMITTING...' : 'REQUEST PRIVATE VIEWING'}
+
+                    <Button
+                      variant="gold"
+                      fullWidth
+                      size="lg"
+                      disabled={!selectedMethod}
+                      onClick={() => setPaymentStep('confirm')}
+                    >
+                      PROCEED TO PAYMENT
                     </Button>
-                  </form>
+
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                      <Lock size={11} className="text-text-muted" />
+                      <p className="text-[0.6rem] text-text-muted font-body uppercase tracking-[0.15em]">256-bit SSL encrypted</p>
+                    </div>
+                  </>
                 )}
+
+                {paymentStep === 'confirm' && (
+                  <>
+                    <h3 className="font-heading text-lg text-text-primary mb-1">Confirm Purchase</h3>
+                    <p className="text-xs text-text-muted font-body tracking-wider mb-6">
+                      Review the details below before proceeding.
+                    </p>
+
+                    <div className="space-y-3 mb-6 bg-surface-2 border border-border p-4">
+                      <div className="flex justify-between text-xs font-body tracking-wider">
+                        <span className="text-text-muted">Property</span>
+                        <span className="text-text-primary truncate max-w-[150px] text-right">{property.title}</span>
+                      </div>
+                      <div className="flex justify-between text-xs font-body tracking-wider">
+                        <span className="text-text-muted">Method</span>
+                        <span className="text-text-primary capitalize">{PAYMENT_METHODS.find(m => m.id === selectedMethod)?.label}</span>
+                      </div>
+                      <div className="flex justify-between text-xs font-body tracking-wider border-t border-border pt-3 mt-1">
+                        <span className="text-text-muted">Total</span>
+                        <span className="text-gold font-heading text-base">£{property.price.toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {checkoutError && (
+                      <p className="text-xs text-red-400 font-body tracking-wider mb-3 text-center">{checkoutError}</p>
+                    )}
+
+                    <Button
+                      variant="gold"
+                      fullWidth
+                      size="lg"
+                      disabled={checkoutLoading}
+                      onClick={selectedMethod === 'card' ? handleStripeCheckout : () => setPaymentStep('done')}
+                    >
+                      {checkoutLoading
+                        ? 'REDIRECTING TO STRIPE…'
+                        : selectedMethod === 'card'
+                        ? 'PAY WITH STRIPE'
+                        : 'CONFIRM & PAY'}
+                    </Button>
+                    <button
+                      onClick={() => setPaymentStep('choose')}
+                      className="w-full mt-3 text-[0.65rem] font-body uppercase tracking-[0.2em] text-text-muted hover:text-gold transition-colors"
+                    >
+                      ← Change Method
+                    </button>
+                  </>
+                )}
+
+                {paymentStep === 'done' && (
+                  <div className="text-center py-4">
+                    <ShieldCheck size={36} className="text-gold mx-auto mb-4" />
+                    {searchParams.get('payment') === 'success' ? (
+                      <>
+                        <p className="font-heading text-xl text-text-primary mb-2">Payment Confirmed</p>
+                        <p className="text-xs text-text-muted font-body tracking-wider leading-relaxed">
+                          {isDepositPayment
+                            ? 'Your reservation deposit was received. Our private banking team will contact you within 24 hours to arrange the full transfer.'
+                            : 'Your card payment was successful. Our team will contact you within 24 hours to complete the purchase.'
+                          }
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-heading text-xl text-text-primary mb-2">Payment Initiated</p>
+                        <p className="text-xs text-text-muted font-body tracking-wider leading-relaxed">
+                          Your transaction has been received. Our private banking team will contact you within 24 hours to complete the transfer.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Enquire separately */}
+              <div className="mt-4 p-5 bg-surface border border-border text-center">
+                <p className="text-[0.65rem] font-body uppercase tracking-[0.2em] text-text-muted mb-3">Prefer to speak first?</p>
+                <Link href="/concierge">
+                  <Button variant="ghost" size="sm" fullWidth>SPEAK TO CONCIERGE</Button>
+                </Link>
               </div>
             </div>
           </div>

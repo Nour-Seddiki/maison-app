@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -27,6 +28,32 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  // Notify the client (if logged in) that their inquiry was received
+  // Notify the seller about a new inquiry on their property
+  try {
+    const admin = createAdminClient()
+    const inserts = []
+    if (user?.id) {
+      inserts.push({
+        user_id: user.id,
+        type: 'new_inquiry',
+        title: 'Inquiry Received',
+        message: 'Your inquiry has been received. Our concierge will be in touch within 24 hours.',
+        link: `/portfolio/${body.property_id}`,
+      })
+    }
+    if (body.seller_id) {
+      inserts.push({
+        user_id: body.seller_id,
+        type: 'new_inquiry',
+        title: 'New Inquiry',
+        message: `A client has expressed interest in your property. Check your listings for details.`,
+        link: '/seller/listings',
+      })
+    }
+    if (inserts.length > 0) await admin.from('notifications').insert(inserts)
+  } catch {}
 
   return NextResponse.json({ data }, { status: 201 })
 }

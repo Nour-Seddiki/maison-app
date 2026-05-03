@@ -21,7 +21,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   }
 
   // Increment view count
-  await supabase.rpc('increment_insight_view_count', { insight_id: article.id }).catch(() => {})
+  void supabase.rpc('increment_insight_view_count', { insight_id: article.id })
 
   return (
     <div className="min-h-screen pt-28 pb-24">

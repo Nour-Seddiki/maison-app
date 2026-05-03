@@ -19,6 +19,8 @@ CREATE TYPE inquiry_status AS ENUM ('new', 'contacted', 'viewing_scheduled', 'ne
 -- ============================================================
 -- PROFILES (extends Supabase auth.users)
 -- ============================================================
+-- Run this migration if upgrading an existing database:
+-- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS national_id TEXT;
 
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -28,6 +30,7 @@ CREATE TABLE profiles (
   avatar_url TEXT,
   phone TEXT,
   nationality TEXT,
+  national_id TEXT,
   preferred_currency TEXT DEFAULT 'GBP',
   bio TEXT,
   company_name TEXT,

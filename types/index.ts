@@ -16,11 +16,15 @@ export interface Profile {
   avatar_url: string | null;
   phone: string | null;
   nationality: string | null;
+  national_id: string | null;
+  national_id_image_url: string | null;
   preferred_currency: string;
   bio: string | null;
+  location: string | null;
   company_name: string | null;
   license_number: string | null;
   is_verified: boolean;
+  is_banned: boolean | null;
   nda_signed: boolean;
   created_at: string;
   updated_at: string;

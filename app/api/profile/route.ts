@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest) {
   const updates = await request.json()
 
   // Allowlist safe fields only
-  const allowed = ['full_name', 'display_name', 'phone', 'nationality', 'preferred_currency', 'bio', 'avatar_url']
+  const allowed = ['full_name', 'display_name', 'phone', 'nationality', 'national_id', 'national_id_image_url', 'preferred_currency', 'bio', 'avatar_url', 'location']
   const safe = Object.fromEntries(Object.entries(updates).filter(([k]) => allowed.includes(k)))
 
   const { data, error } = await supabase

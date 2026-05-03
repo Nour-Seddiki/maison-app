@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
@@ -30,11 +31,14 @@ export default async function AdminDashboard() {
   const { data: adminProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (adminProfile?.role !== 'admin') redirect('/dashboard')
 
+  // Use service-role client so RLS doesn't filter out off_market / private properties
+  const adminDb = createAdminClient()
+
   const [usersResult, propertiesResult, inquiriesResult, pendingResult] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('inquiries').select('*', { count: 'exact', head: true }),
-    supabase.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'pending_review'),
+    adminDb.from('profiles').select('*', { count: 'exact', head: true }),
+    adminDb.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    adminDb.from('inquiries').select('*', { count: 'exact', head: true }),
+    adminDb.from('properties').select('*', { count: 'exact', head: true }).eq('status', 'pending_review'),
   ])
 
   const stats = [
@@ -44,20 +48,20 @@ export default async function AdminDashboard() {
     { label: 'Total Inquiries', value: (inquiriesResult.count || 0).toLocaleString(), icon: TrendingUp },
   ]
 
-  const { data: pendingListings } = await supabase
+  const { data: pendingListings } = await adminDb
     .from('properties')
     .select('id, title, price, created_at, seller:profiles(full_name)')
     .eq('status', 'pending_review')
     .order('created_at', { ascending: false })
     .limit(5)
 
-  const { data: recentUsers } = await supabase
+  const { data: recentUsers } = await adminDb
     .from('profiles')
     .select('full_name, role, created_at')
     .order('created_at', { ascending: false })
     .limit(5)
 
-  const { data: recentInquiries } = await supabase
+  const { data: recentInquiries } = await adminDb
     .from('inquiries')
     .select('contact_name, status, created_at, property:properties(title)')
     .order('created_at', { ascending: false })

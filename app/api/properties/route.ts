@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -78,6 +79,18 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  // Notify the seller that their listing is now live
+  try {
+    const admin = createAdminClient()
+    await admin.from('notifications').insert({
+      user_id: user.id,
+      type: 'new_listing',
+      title: 'Property Published',
+      message: `Your listing "${data.title}" is now live on Maison & Co.`,
+      link: `/portfolio/${data.id}`,
+    })
+  } catch {}
 
   return NextResponse.json({ data }, { status: 201 })
 }
