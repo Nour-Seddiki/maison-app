@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     "Curating exceptional residences for the world's most discerning clientele. Luxury real estate across London's most prestigious postcodes.",
   keywords: ["luxury real estate", "London property", "private residences", "Mayfair", "Knightsbridge"],
   icons: {
-    icon: [],
+    icon: "/favicon.svg",
   },
 };
 
