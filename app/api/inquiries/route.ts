@@ -44,12 +44,15 @@ export async function POST(request: NextRequest) {
       })
     }
     if (body.seller_id) {
+      const isViewing = !!body.preferred_viewing_date || body.is_viewing_request
       inserts.push({
         user_id: body.seller_id,
-        type: 'new_inquiry',
-        title: 'New Inquiry',
-        message: `A client has expressed interest in your property. Check your listings for details.`,
-        link: '/seller/listings',
+        type: isViewing ? 'viewing_request' : 'new_inquiry',
+        title: isViewing ? 'New Viewing Request' : 'New Inquiry',
+        message: isViewing
+          ? `${body.contact_name} has requested a private viewing${body.preferred_viewing_date ? ` on ${new Date(body.preferred_viewing_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}. Check your dashboard.`
+          : `A client has expressed interest in your property. Check your listings for details.`,
+        link: '/seller/dashboard',
       })
     }
     if (inserts.length > 0) await admin.from('notifications').insert(inserts)

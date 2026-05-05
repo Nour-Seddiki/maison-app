@@ -7,7 +7,7 @@ import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import PropertyCard from '@/components/property/PropertyCard'
-import { Heart, Share2, MapPin, Bed, Bath, Maximize, Building, ChevronLeft, ChevronRight, CreditCard, Landmark, Bitcoin, ShieldCheck, Lock } from 'lucide-react'
+import { Heart, Share2, MapPin, Bed, Bath, Maximize, Building, ChevronLeft, ChevronRight, CreditCard, Landmark, Bitcoin, ShieldCheck, Lock, CalendarDays, CheckCircle2 } from 'lucide-react'
 import { Property } from '@/types'
 
 interface PropertyDetailClientProps {
@@ -32,6 +32,16 @@ export default function PropertyDetailClient({ property, similarProperties }: Pr
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [isDepositPayment, setIsDepositPayment] = useState(false)
+
+  // Appointment state
+  const [apptName, setApptName] = useState('')
+  const [apptEmail, setApptEmail] = useState('')
+  const [apptPhone, setApptPhone] = useState('')
+  const [apptDate, setApptDate] = useState('')
+  const [apptMessage, setApptMessage] = useState('')
+  const [apptLoading, setApptLoading] = useState(false)
+  const [apptError, setApptError] = useState<string | null>(null)
+  const [apptDone, setApptDone] = useState(false)
 
   useEffect(() => {
     const status = searchParams.get('payment')
@@ -68,6 +78,35 @@ export default function PropertyDetailClient({ property, similarProperties }: Pr
 
   const nextImage = () => setCurrentImage((prev) => (prev + 1) % images.length)
   const prevImage = () => setCurrentImage((prev) => (prev - 1 + images.length) % images.length)
+
+  const handleBookViewing = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setApptLoading(true)
+    setApptError(null)
+    try {
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: property.id,
+          seller_id: property.seller?.id,
+          contact_name: apptName,
+          contact_email: apptEmail,
+          contact_phone: apptPhone || null,
+          preferred_viewing_date: apptDate || null,
+          message: apptMessage || `Viewing request for ${property.title}`,
+          is_viewing_request: true,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to submit request')
+      setApptDone(true)
+    } catch (err) {
+      setApptError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setApptLoading(false)
+    }
+  }
 
   const PAYMENT_METHODS = [
     { id: 'bank' as const, icon: Landmark, label: 'Bank Transfer', desc: 'SWIFT / SEPA wire transfer' },
@@ -216,6 +255,86 @@ export default function PropertyDetailClient({ property, similarProperties }: Pr
                   </div>
                 </div>
               )}
+
+              {/* Book a Viewing */}
+              <div className="mb-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <CalendarDays size={20} className="text-gold" />
+                  <h3 className="font-heading text-2xl text-text-primary">Book a Private Viewing</h3>
+                </div>
+
+                {apptDone ? (
+                  <div className="flex flex-col items-center justify-center py-10 border border-border bg-surface text-center gap-4">
+                    <CheckCircle2 size={36} className="text-gold" />
+                    <p className="font-heading text-xl text-text-primary">Request Received</p>
+                    <p className="text-sm text-text-muted font-body tracking-wider max-w-sm">
+                      Your viewing request has been sent to the seller. Our concierge will confirm your appointment within 24 hours.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleBookViewing} className="bg-surface border border-border p-6 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label-caps text-text-muted block mb-2">Full Name *</label>
+                        <input
+                          required
+                          value={apptName}
+                          onChange={e => setApptName(e.target.value)}
+                          className="w-full bg-transparent border border-border px-4 py-3 text-sm font-body text-text-primary placeholder-text-muted focus:outline-none focus:border-gold transition-colors"
+                          placeholder="Your full name"
+                        />
+                      </div>
+                      <div>
+                        <label className="label-caps text-text-muted block mb-2">Email Address *</label>
+                        <input
+                          required
+                          type="email"
+                          value={apptEmail}
+                          onChange={e => setApptEmail(e.target.value)}
+                          className="w-full bg-transparent border border-border px-4 py-3 text-sm font-body text-text-primary placeholder-text-muted focus:outline-none focus:border-gold transition-colors"
+                          placeholder="your@email.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="label-caps text-text-muted block mb-2">Phone Number</label>
+                        <input
+                          type="tel"
+                          value={apptPhone}
+                          onChange={e => setApptPhone(e.target.value)}
+                          className="w-full bg-transparent border border-border px-4 py-3 text-sm font-body text-text-primary placeholder-text-muted focus:outline-none focus:border-gold transition-colors"
+                          placeholder="+44 7000 000000"
+                        />
+                      </div>
+                      <div>
+                        <label className="label-caps text-text-muted block mb-2">Preferred Date</label>
+                        <input
+                          type="date"
+                          value={apptDate}
+                          min={new Date().toISOString().split('T')[0]}
+                          onChange={e => setApptDate(e.target.value)}
+                          className="w-full bg-transparent border border-border px-4 py-3 text-sm font-body text-text-primary placeholder-text-muted focus:outline-none focus:border-gold transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="label-caps text-text-muted block mb-2">Message (optional)</label>
+                      <textarea
+                        value={apptMessage}
+                        onChange={e => setApptMessage(e.target.value)}
+                        rows={3}
+                        className="w-full bg-transparent border border-border px-4 py-3 text-sm font-body text-text-primary placeholder-text-muted focus:outline-none focus:border-gold transition-colors resize-none"
+                        placeholder="Any specific requirements or questions…"
+                      />
+                    </div>
+                    {apptError && (
+                      <p className="text-xs text-red-400 font-body tracking-wider">{apptError}</p>
+                    )}
+                    <Button type="submit" variant="gold" size="lg" disabled={apptLoading}>
+                      {apptLoading ? 'SUBMITTING…' : 'REQUEST VIEWING'}
+                    </Button>
+                  </form>
+                )}
+              </div>
             </div>
           </div>
 

@@ -26,6 +26,10 @@ export default async function SellerDashboard() {
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false })
 
+  // Split into viewing appointments vs general inquiries
+  const viewingAppointments = (inquiries || []).filter(i => i.preferred_viewing_date)
+  const generalInquiries = (inquiries || []).filter(i => !i.preferred_viewing_date)
+
   // Calculate stats
   const activeListings = listings?.filter(l => l.status === 'active').length || 0
   const pendingReviews = listings?.filter(l => l.status === 'pending_review').length || 0
@@ -43,7 +47,8 @@ export default async function SellerDashboard() {
     <DashboardClient 
       stats={stats} 
       listings={listings || []} 
-      recentInquiries={(inquiries || []).slice(0, 5)} 
+      recentInquiries={generalInquiries.slice(0, 5)}
+      viewingAppointments={viewingAppointments.slice(0, 10)}
     />
   )
 }

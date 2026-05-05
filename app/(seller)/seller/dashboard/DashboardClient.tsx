@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { BarChart3, Eye, MessageSquare, Clock, Plus, Edit, Trash2 } from 'lucide-react'
+import { BarChart3, Eye, MessageSquare, Clock, Plus, Edit, Trash2, CalendarDays } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 interface DashboardClientProps {
   stats: any[]
   listings: any[]
   recentInquiries: any[]
+  viewingAppointments: any[]
 }
 
 const statusVariant = (status: string) => {
@@ -35,7 +36,7 @@ const iconMap: Record<string, any> = {
   'Pending Reviews': Clock,
 }
 
-export default function DashboardClient({ stats, listings, recentInquiries }: DashboardClientProps) {
+export default function DashboardClient({ stats, listings, recentInquiries, viewingAppointments }: DashboardClientProps) {
   const router = useRouter()
   const [confirm, setConfirm] = useState<{ id: string; title: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -172,6 +173,42 @@ export default function DashboardClient({ stats, listings, recentInquiries }: Da
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Viewing Appointments */}
+        <div className="bg-surface border border-border mb-12">
+          <div className="px-6 py-4 border-b border-border flex items-center gap-3">
+            <CalendarDays size={18} className="text-gold" />
+            <h3 className="font-heading text-xl text-text-primary">Viewing Appointments</h3>
+          </div>
+          <div className="divide-y divide-border">
+            {viewingAppointments.length === 0 && (
+              <div className="px-6 py-8 text-center text-text-muted font-body">No viewing requests yet</div>
+            )}
+            {viewingAppointments.map((appt, i) => (
+              <div key={appt.id || i} className="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 hover:bg-surface-2/50 transition-colors">
+                <div>
+                  <p className="text-sm text-text-primary font-body font-medium">{appt.contact_name}</p>
+                  <p className="text-xs text-text-muted font-body tracking-wider mt-0.5">{appt.properties?.title || 'Unknown Property'}</p>
+                  {appt.contact_email && (
+                    <p className="text-xs text-text-muted font-body tracking-wider">{appt.contact_email}{appt.contact_phone ? ` · ${appt.contact_phone}` : ''}</p>
+                  )}
+                  {appt.message && (
+                    <p className="text-xs text-text-secondary font-body tracking-wider mt-1 italic">&ldquo;{appt.message}&rdquo;</p>
+                  )}
+                </div>
+                <div className="flex flex-col sm:items-end gap-2 flex-shrink-0">
+                  {appt.preferred_viewing_date && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gold/10 border border-gold/30 text-gold text-xs font-body tracking-wider">
+                      <CalendarDays size={12} />
+                      {new Date(appt.preferred_viewing_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
+                  )}
+                  <Badge variant={statusVariant(appt.status) as 'gold' | 'success' | 'outline' | 'dark'}>{statusLabel(appt.status)}</Badge>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
