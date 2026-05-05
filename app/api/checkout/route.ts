@@ -32,7 +32,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const protocol = request.headers.get('x-forwarded-proto') ?? 'https'
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    (forwardedHost ? `${protocol}://${forwardedHost}` : new URL(request.url).origin)
 
   const fullPricePence = Math.round(price * 100)
   const isDeposit = fullPricePence > STRIPE_MAX_PENCE
