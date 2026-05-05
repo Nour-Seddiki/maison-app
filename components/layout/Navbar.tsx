@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, Menu, X, User, LogOut, Bell, Home, Info, BookOpen, Settings, Heart } from 'lucide-react'
+import { Search, Menu, X, User, LogOut, Bell, Home, Info, BookOpen, Settings, Heart, Users, Building, Shield } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -35,30 +35,39 @@ export default function Navbar() {
     const supabase = createClient()
 
     const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-          role: session.user.user_metadata?.role || 'client',
-        })
-        // Fetch profile for avatar
-        fetch('/api/profile').then(r => r.json()).then(({ data }) => {
-          if (data?.avatar_url) setAvatarUrl(data.avatar_url)
-        }).catch(() => {})
-        // Fetch notifications
-        fetch('/api/notifications').then(r => r.json()).then(({ data }) => {
-          if (data) setNotifications(data)
-        }).catch(() => {})
-      } else {
+      const { data: { user: authUser }, error } = await supabase.auth.getUser()
+      if (error || !authUser) {
+        // Clear any stale session/tokens
+        await supabase.auth.signOut()
         setUser(null)
         setAvatarUrl(null)
+        return
       }
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        role: authUser.user_metadata?.role || 'client',
+      })
+      // Fetch profile for avatar
+      fetch('/api/profile').then(r => r.json()).then(({ data }) => {
+        if (data?.avatar_url) setAvatarUrl(data.avatar_url)
+      }).catch(() => {})
+      // Fetch notifications
+      fetch('/api/notifications').then(r => r.json()).then(({ data }) => {
+        if (data) setNotifications(data)
+      }).catch(() => {})
     }
 
     getUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        // Stale/invalid refresh token — clear local state silently
+        supabase.auth.signOut()
+        setUser(null)
+        setAvatarUrl(null)
+        return
+      }
       if (session?.user) {
         setUser({
           id: session.user.id,
@@ -239,6 +248,30 @@ export default function Navbar() {
                         <Settings size={14} />
                         SETTINGS
                       </Link>
+                      {user.role === 'admin' && (
+                        <>
+                          <div className="border-t border-border/60 mx-4 my-1" />
+                          <div className="px-4 py-1.5">
+                            <p className="text-[0.55rem] font-body uppercase tracking-[0.25em] text-gold/60 flex items-center gap-1"><Shield size={10} className="text-gold/60" /> Admin</p>
+                          </div>
+                          <Link
+                            href="/admin/users"
+                            onClick={() => setShowUserMenu(false)}
+                            className="flex items-center gap-3 px-4 py-3 text-[0.7rem] font-body uppercase tracking-[0.15em] text-text-secondary hover:text-gold hover:bg-surface-2/50 transition-colors"
+                          >
+                            <Users size={14} />
+                            MANAGE USERS
+                          </Link>
+                          <Link
+                            href="/admin/listings"
+                            onClick={() => setShowUserMenu(false)}
+                            className="flex items-center gap-3 px-4 py-3 text-[0.7rem] font-body uppercase tracking-[0.15em] text-text-secondary hover:text-gold hover:bg-surface-2/50 transition-colors"
+                          >
+                            <Building size={14} />
+                            ALL PROPERTIES
+                          </Link>
+                        </>
+                      )}
                       <button
                         onClick={handleSignOut}
                         className="flex items-center gap-3 w-full px-4 py-3 text-[0.7rem] font-body uppercase tracking-[0.15em] text-text-secondary hover:text-red-400 hover:bg-surface-2/50 transition-colors border-t border-border"
@@ -348,6 +381,30 @@ export default function Navbar() {
                   <Settings size={16} className="text-gold/60" />
                   SETTINGS
                 </Link>
+                {user.role === 'admin' && (
+                  <>
+                    <div className="border-t border-border/60 mx-4 my-1" />
+                    <div className="px-4 py-1.5">
+                      <p className="text-[0.6rem] font-body uppercase tracking-[0.25em] text-gold/60 flex items-center gap-1"><Shield size={11} className="text-gold/60" /> Admin</p>
+                    </div>
+                    <Link
+                      href="/admin/users"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-4 px-4 py-4 text-sm font-body uppercase tracking-[0.25em] text-text-secondary hover:text-gold hover:bg-surface/50 transition-colors rounded-sm"
+                    >
+                      <Users size={16} className="text-gold/60" />
+                      MANAGE USERS
+                    </Link>
+                    <Link
+                      href="/admin/listings"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-4 px-4 py-4 text-sm font-body uppercase tracking-[0.25em] text-text-secondary hover:text-gold hover:bg-surface/50 transition-colors rounded-sm"
+                    >
+                      <Building size={16} className="text-gold/60" />
+                      ALL PROPERTIES
+                    </Link>
+                  </>
+                )}
                 <button
                   onClick={handleSignOut}
                   className="flex items-center gap-4 px-4 py-4 text-sm font-body uppercase tracking-[0.25em] text-text-secondary hover:text-red-400 hover:bg-surface/50 transition-colors rounded-sm text-left"
