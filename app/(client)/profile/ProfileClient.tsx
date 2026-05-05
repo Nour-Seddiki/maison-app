@@ -5,7 +5,6 @@ import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import { Profile } from '@/types'
 import { CreditCard, User, Phone, Globe, Wallet, CheckCircle, Upload, X, ImageIcon, MapPin, Camera } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 
 const CURRENCIES = [
   { value: 'GBP', label: 'GBP — British Pound (£)' },
@@ -64,16 +63,13 @@ export default function ProfileClient({ profile }: { profile: Profile }) {
     if (!avatarFile) return avatarUrl
     setUploadingAvatar(true)
     try {
-      const supabase = createClient()
-      const ext = avatarFile.name.split('.').pop()
-      const path = `${profile.id}/avatar-${Date.now()}.${ext}`
-      const { data: upload, error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(path, avatarFile, { cacheControl: '3600', upsert: true })
-      if (uploadError) throw new Error(uploadError.message)
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(upload.path)
-      setAvatarUrl(publicUrl)
-      return publicUrl
+      const formData = new FormData()
+      formData.append('file', avatarFile)
+      const res = await fetch('/api/profile/avatar', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setAvatarUrl(data.url)
+      return data.url
     } finally {
       setUploadingAvatar(false)
     }
@@ -98,16 +94,13 @@ export default function ProfileClient({ profile }: { profile: Profile }) {
     if (!idImageFile) return idImageUrl
     setUploadingId(true)
     try {
-      const supabase = createClient()
-      const ext = idImageFile.name.split('.').pop()
-      const path = `${profile.id}/id-card-${Date.now()}.${ext}`
-      const { data: upload, error: uploadError } = await supabase.storage
-        .from('id-documents')
-        .upload(path, idImageFile, { cacheControl: '3600', upsert: true })
-      if (uploadError) throw new Error(uploadError.message)
-      const { data: { publicUrl } } = supabase.storage.from('id-documents').getPublicUrl(upload.path)
-      setIdImageUrl(publicUrl)
-      return publicUrl
+      const formData = new FormData()
+      formData.append('file', idImageFile)
+      const res = await fetch('/api/profile/id-document', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setIdImageUrl(data.url)
+      return data.url
     } finally {
       setUploadingId(false)
     }

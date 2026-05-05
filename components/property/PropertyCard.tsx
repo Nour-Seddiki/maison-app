@@ -1,11 +1,14 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Heart } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import { cn, formatPriceRaw } from '@/lib/utils'
 import type { PropertyCardProps } from '@/types'
+
+const FALLBACK_IMAGE = '/images/hero.png'
 
 export default function PropertyCard({
   id,
@@ -14,6 +17,7 @@ export default function PropertyCard({
   price,
   pricePerWeek,
   listingType,
+  status,
   bedrooms,
   sqFt,
   coverImage,
@@ -23,6 +27,8 @@ export default function PropertyCard({
   isSaved = false,
   onSaveToggle,
 }: PropertyCardProps) {
+  const [imgSrc, setImgSrc] = useState(coverImage || FALLBACK_IMAGE)
+  const isSold = status === 'sold' || status === 'rented'
   const badgeLabel = listingType === 'sale' ? 'FOR SALE' : listingType === 'rent' ? 'TO RENT' : 'OFF MARKET'
   const badgeVariant = listingType === 'off_market' ? 'gold' : 'dark'
 
@@ -32,18 +38,35 @@ export default function PropertyCard({
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden">
           <Image
-            src={coverImage}
+            src={imgSrc}
             alt={title}
             fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover transition-transform duration-700 group-hover:scale-105"
+            onError={() => setImgSrc(FALLBACK_IMAGE)}
           />
           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-500" />
 
+          {/* Sold overlay */}
+          {isSold && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <span className="font-heading text-2xl italic text-gold tracking-widest">
+                {status === 'rented' ? 'RENTED' : 'SOLD'}
+              </span>
+            </div>
+          )}
+
           {/* Badges */}
           <div className="absolute top-4 left-4 flex gap-2">
-            <Badge variant={badgeVariant}>{badgeLabel}</Badge>
-            {neighborhoodBadge && (
-              <Badge variant="dark">{neighborhoodBadge}</Badge>
+            {isSold ? (
+              <Badge variant="gold">{status === 'rented' ? 'RENTED' : 'SOLD'}</Badge>
+            ) : (
+              <>
+                <Badge variant={badgeVariant}>{badgeLabel}</Badge>
+                {neighborhoodBadge && (
+                  <Badge variant="dark">{neighborhoodBadge}</Badge>
+                )}
+              </>
             )}
           </div>
 

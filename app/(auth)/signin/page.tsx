@@ -19,12 +19,15 @@ function SignInContent() {
 
   const handleGoogleSignIn = async () => {
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/api/auth/callback`,
       },
     })
+    if (error) {
+      setError(error.message || 'Google sign-in failed. Please try again or use email/password.')
+    }
   }
 
   // Show error from callback failures

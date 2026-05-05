@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, Menu, X, User, LogOut, Bell, Home, Building2, Info, BookOpen, Settings } from 'lucide-react'
+import { Search, Menu, X, User, LogOut, Bell, Home, Info, BookOpen, Settings, Heart } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -19,6 +19,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [user, setUser] = useState<{ id: string; email?: string; role?: string } | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; title: string; message: string | null; link: string | null; is_read: boolean; created_at: string }[]>([])
@@ -41,12 +42,17 @@ export default function Navbar() {
           email: session.user.email,
           role: session.user.user_metadata?.role || 'client',
         })
+        // Fetch profile for avatar
+        fetch('/api/profile').then(r => r.json()).then(({ data }) => {
+          if (data?.avatar_url) setAvatarUrl(data.avatar_url)
+        }).catch(() => {})
         // Fetch notifications
         fetch('/api/notifications').then(r => r.json()).then(({ data }) => {
           if (data) setNotifications(data)
         }).catch(() => {})
       } else {
         setUser(null)
+        setAvatarUrl(null)
       }
     }
 
@@ -61,6 +67,7 @@ export default function Navbar() {
         })
       } else {
         setUser(null)
+        setAvatarUrl(null)
       }
     })
 
@@ -71,6 +78,7 @@ export default function Navbar() {
     const supabase = createClient()
     await supabase.auth.signOut()
     setUser(null)
+    setAvatarUrl(null)
     setShowUserMenu(false)
     setMobileOpen(false)
     router.push('/')
@@ -182,8 +190,12 @@ export default function Navbar() {
                   className="flex items-center gap-2 text-text-secondary hover:text-gold transition-colors"
                   aria-label="Account menu"
                 >
-                  <div className="w-8 h-8 bg-surface-2 border border-border flex items-center justify-center rounded-full">
-                    <User size={14} className="text-gold" />
+                  <div className="w-8 h-8 bg-surface-2 border border-border flex items-center justify-center rounded-full overflow-hidden">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={14} className="text-gold" />
+                    )}
                   </div>
                 </button>
 
@@ -202,6 +214,14 @@ export default function Navbar() {
                       >
                         <User size={14} />
                         DASHBOARD
+                      </Link>
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-[0.7rem] font-body uppercase tracking-[0.15em] text-text-secondary hover:text-gold hover:bg-surface-2/50 transition-colors"
+                      >
+                        <Heart size={14} />
+                        SAVED PROPERTIES
                       </Link>
                       <Link
                         href="/profile"

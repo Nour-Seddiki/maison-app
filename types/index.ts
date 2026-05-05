@@ -184,6 +184,7 @@ export interface PropertyCardProps {
   price: number;
   pricePerWeek?: number;
   listingType: ListingType;
+  status?: PropertyStatus;
   bedrooms: number | null;
   sqFt: number | null;
   coverImage: string;

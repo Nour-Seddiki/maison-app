@@ -68,9 +68,10 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Verify the requester is the owner (or an admin)
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  const { data: property } = await supabase.from('properties').select('seller_id').eq('id', id).single()
+  // Verify the requester is the owner (or an admin) — use admin client to avoid RLS
+  const adminDb = createAdminClient()
+  const { data: profile } = await adminDb.from('profiles').select('role').eq('id', user.id).single()
+  const { data: property } = await adminDb.from('properties').select('seller_id').eq('id', id).single()
 
   if (!property) {
     return NextResponse.json({ error: 'Property not found' }, { status: 404 })
@@ -83,8 +84,6 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Use admin client to bypass the RLS "draft-only" delete policy
-  const adminDb = createAdminClient()
   const { error } = await adminDb.from('properties').delete().eq('id', id)
 
   if (error) {

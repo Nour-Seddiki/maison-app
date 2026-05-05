@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'payment',
-      success_url: `${appUrl}/portfolio/${propertyId}?payment=success`,
+      success_url: `${appUrl}/dashboard?payment=success&propertyId=${propertyId}`,
       cancel_url: `${appUrl}/portfolio/${propertyId}?payment=cancelled`,
       metadata: {
         propertyId,

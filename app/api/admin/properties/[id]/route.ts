@@ -35,7 +35,10 @@ export async function DELETE(
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { error } = await supabase.from('properties').delete().eq('id', id)
+  // Use admin client to bypass RLS for delete
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const adminDb = createAdminClient()
+  const { error } = await adminDb.from('properties').delete().eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
