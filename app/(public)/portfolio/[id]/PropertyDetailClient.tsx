@@ -89,7 +89,7 @@ export default function PropertyDetailClient({ property, similarProperties }: Pr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           property_id: property.id,
-          seller_id: property.seller?.id,
+          seller_id: property.seller_id,
           contact_name: apptName,
           contact_email: apptEmail,
           contact_phone: apptPhone || null,
