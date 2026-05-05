@@ -46,7 +46,7 @@ export default function ConciergePage() {
         <div className="bg-surface border border-gold/20 p-12 text-center">
           <h3 className="font-heading text-3xl italic text-text-primary mb-4">Connect With Our Team</h3>
           <p className="text-text-secondary font-body font-light text-sm tracking-wider mb-8">
-            +44 (0) 20 7123 4567 · concierge@maison.co.uk
+            <a href="mailto:seddikimednour@gmail.com" className="hover:text-gold transition-colors">seddikimednour@gmail.com</a>
           </p>
           <Button variant="gold" size="lg">BOOK APPOINTMENT</Button>
         </div>
